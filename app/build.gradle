@@ -17,7 +17,7 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
@@ -38,10 +38,6 @@ dependencies {
     compile 'com.android.support:appcompat-v7:25.3.1'
     compile 'com.google.android.gms:play-services-maps:11.0.0'
     compile "com.google.android.gms:play-services-location:11.0.0"
-    compile 'com.readystatesoftware.sqliteasset:sqliteassethelper:+'
-    compile 'com.google.code.gson:gson:2.6.1'
-    compile 'com.mcxiaoke.volley:library:1.0.19'
-//    compile 'io.reactivex.rxjava2:rxjava:2.1.0'
     compile 'com.google.maps.android:android-maps-utils:0.3+'
 
     compile "android.arch.lifecycle:extensions:1.0.0-alpha1"
