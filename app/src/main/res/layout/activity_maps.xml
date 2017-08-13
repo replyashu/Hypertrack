@@ -1,6 +1,6 @@
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:map="http://schemas.android.com/apk/res-auto"
+<RelativeLayout xmlns:map="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:layout_width="match_parent">
@@ -10,19 +10,25 @@
         android:name="com.google.android.gms.maps.SupportMapFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_gravity="center"
+        android:layout_above="@+id/ar_fragment"
         tools:context="com.inducesmile.androidlocationtracking.MapTrackingActivity" />
+
+    <fragment
+        android:id="@+id/ar_fragment"
+        android:name="com.hypertrack.map.ActivityFragment"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/start_tracking"/>
+
     <Button
         android:id="@+id/start_tracking"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="16dp"
-        android:background="@color/colorPrimaryDark"
+        android:background="@android:color/holo_red_light"
         android:textColor="@color/colorIcons"
-        android:text="@string/start_tracking"
-        android:layout_gravity="bottom"
-        android:layout_marginBottom="40dp"
-        android:layout_marginRight="16dp"
-        android:layout_marginLeft="16dp"
+        android:text="STOP"
+        android:layout_alignParentBottom="true"
+
         android:gravity="center"/>
-</FrameLayout>
+</RelativeLayout>

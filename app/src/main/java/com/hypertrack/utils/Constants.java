@@ -1,8 +1,5 @@
 package com.hypertrack.utils;
 
-/**
- * Created by apple on 13/08/17.
- */
 
 public class Constants {
 

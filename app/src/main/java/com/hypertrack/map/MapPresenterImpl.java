@@ -9,8 +9,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.graphics.Color;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -45,10 +47,15 @@ import com.hypertrack.user.UserTracking;
 import com.hypertrack.utils.Constants;
 import com.hypertrack.utils.UserDatabase;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
+
 
 
 public class MapPresenterImpl extends MapPresenter implements OnMapReadyCallback,
@@ -61,9 +68,13 @@ public class MapPresenterImpl extends MapPresenter implements OnMapReadyCallback
     Location mLastLocation;
     Marker mCurrLocationMarker;
     LocationRequest mLocationRequest;
+    private ArrayList<LatLng> points; //added
+    Polyline line; //added
+    SharedPreferences sp;
+    Boolean isCollect;
+
 
     private final LiveData<List<UserActivity>> userActivityList;
-    private ActivityDetectionBroadcastReceiver mBroadcastReceiver;
 
     private UserDatabase userDatabase;
 
@@ -71,7 +82,9 @@ public class MapPresenterImpl extends MapPresenter implements OnMapReadyCallback
         this.context = context;
         userDatabase = UserDatabase.getDatabase(context);
         userActivityList = userDatabase.userLocationAndTime().getAllLocations();
-        mBroadcastReceiver = new ActivityDetectionBroadcastReceiver();
+        points = new ArrayList<LatLng>(); //added
+        sp = context.getSharedPreferences("isCollecteable", 0);
+        isCollect = sp.getBoolean("isOn", false);
     }
 
     public LiveData<List<UserActivity>> getUserActivityList() {
@@ -150,7 +163,6 @@ public class MapPresenterImpl extends MapPresenter implements OnMapReadyCallback
 
     @Override
     public void onResume() {
-        LocalBroadcastManager.getInstance(context).registerReceiver(mBroadcastReceiver, new IntentFilter(Constants.STRING_ACTION));
     }
 
     @Override
@@ -160,7 +172,6 @@ public class MapPresenterImpl extends MapPresenter implements OnMapReadyCallback
 
     @Override
     public void onPause() {
-        LocalBroadcastManager.getInstance(context).unregisterReceiver(mBroadcastReceiver);
     }
 
     protected synchronized void buildGoogleApiClient() {
@@ -179,6 +190,7 @@ public class MapPresenterImpl extends MapPresenter implements OnMapReadyCallback
         mLocationRequest.setInterval(1000);
         mLocationRequest.setFastestInterval(1000);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+//        mLocationRequest.setSmallestDisplacement(0.25F); //added
         if (ContextCompat.checkSelfPermission(context,
                 Manifest.permission.ACCESS_FINE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED) {
@@ -207,18 +219,14 @@ public class MapPresenterImpl extends MapPresenter implements OnMapReadyCallback
             mCurrLocationMarker.remove();
         }
 
-
         //Place current location marker
         LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-        MarkerOptions markerOptions = new MarkerOptions();
-        markerOptions.position(latLng);
 
-        markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA));
-        mCurrLocationMarker = mMap.addMarker(markerOptions);
+        points.add(latLng); //added
 
-        //move map camera
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
-        mMap.animateCamera(CameraUpdateFactory.zoomTo(11));
+        redrawLine(); //added
+
+        addMarker(latLng);
 
         //stop location updates
         if (mGoogleApiClient != null) {
@@ -235,7 +243,6 @@ public class MapPresenterImpl extends MapPresenter implements OnMapReadyCallback
         activity.setLocation(String.valueOf(latLng));
         activity.setTimeStamp(String.valueOf(seconds));
         activity.setUser_activity(action);
-
 
         new AddActivity(userDatabase).execute(activity);
 
@@ -264,37 +271,53 @@ public class MapPresenterImpl extends MapPresenter implements OnMapReadyCallback
 
     }
 
-    public class ActivityDetectionBroadcastReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            ArrayList<DetectedActivity> detectedActivities = intent.getParcelableArrayListExtra(Constants.STRING_EXTRA);
-            for(DetectedActivity activity: detectedActivities){
-                    updateMap(getDetectedActivity(activity.getType()));
-            }
+    private void redrawLine(){
+        mMap.clear();  //clears all Markers and Polylines
+
+        PolylineOptions options = new PolylineOptions().width(5).color(Color.BLUE).geodesic(true);
+        for (int i = 0; i < points.size(); i++) {
+            LatLng point = points.get(i);
+            options.add(point);
         }
+        line = mMap.addPolyline(options); //add Polyline
     }
 
-    public String getDetectedActivity(int detectedActivityType) {
-        Resources resources = context.getResources();
-        switch(detectedActivityType) {
-            case DetectedActivity.IN_VEHICLE:
-                return resources.getString(R.string.in_vehicle);
-            case DetectedActivity.ON_BICYCLE:
-                return resources.getString(R.string.on_bicycle);
-            case DetectedActivity.ON_FOOT:
-                return resources.getString(R.string.on_foot);
-            case DetectedActivity.RUNNING:
-                return resources.getString(R.string.running);
-            case DetectedActivity.WALKING:
-                return resources.getString(R.string.walking);
-            case DetectedActivity.STILL:
-                return resources.getString(R.string.still);
-            case DetectedActivity.TILTING:
-                return resources.getString(R.string.tilting);
-            case DetectedActivity.UNKNOWN:
-                return resources.getString(R.string.unknown);
-            default:
-                return resources.getString(R.string.unidentifiable_activity, detectedActivityType);
+    private void addMarker(LatLng latLng){
+        MarkerOptions markerOptions = new MarkerOptions();
+        markerOptions.position(latLng);
+        Calendar calendar = Calendar.getInstance();
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        String millisInString  = dateFormat.format(new Date());
+        markerOptions.title(latLng + millisInString);
+        markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA));
+        mCurrLocationMarker = mMap.addMarker(markerOptions);
+
+        //move map camera
+        mMap.setOnMapLoadedCallback(new GoogleMap.OnMapLoadedCallback(){
+            @Override
+            public void onMapLoaded() {
+
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng,19));
+            }
+        });
+    }
+
+    @Override
+    public void stopCollection() {
+        ActivityRecognition.ActivityRecognitionApi.removeActivityUpdates(
+                mGoogleApiClient,
+                getActivityDetectionPendingIntent()
+        ).setResultCallback(this);
+
+    }
+
+    @Override
+    public void startCollection() {
+        if (!mGoogleApiClient.isConnected()) {
+            Toast.makeText(context, "GoogleApiClient not yet connected", Toast.LENGTH_SHORT).show();
+        } else {
+            ActivityRecognition.ActivityRecognitionApi.requestActivityUpdates(mGoogleApiClient, 0, getActivityDetectionPendingIntent()).setResultCallback(this);
         }
+
     }
 }

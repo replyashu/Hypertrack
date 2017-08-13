@@ -7,23 +7,31 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
 import android.os.Build;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.ActivityRecognition;
 import com.google.android.gms.location.DetectedActivity;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationRequest;
@@ -51,24 +59,54 @@ public class MapsActivity extends LifecycleActivity implements OnMapReadyCallbac
     IntentFilter mBroadcastFilter;
     // Instance of a local broadcast manager
     private LocalBroadcastManager mBroadcastManager;
-    private ActivityDetectionBroadcastReceiver mBroadcastReceiver;
-//    private GoogleMap mMap;
+
+    private Button stopButton;
+    private SharedPreferences sp;
+    private Boolean isCollect;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         init();
+        stopButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                isCollect = sp.getBoolean("isOn", true);
+                if(isCollect) {
+                    presenter.stopCollection();
+                    stopButton.setText("START");
+                    stopButton.setBackgroundColor(getResources().getColor(R.color.colorAccent));
+                    sp.edit().putBoolean("isOn", false).commit();
+
+                }
+                else{
+                    presenter.startCollection();
+                    stopButton.setText("STOP");
+                    stopButton.setBackgroundColor(Color.RED);
+                    sp.edit().putBoolean("isOn", true).commit();
+                }
+            }
+        });
     }
 
     private void init(){
         setContentView(R.layout.activity_maps);
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         mBroadcastManager = LocalBroadcastManager.getInstance(this);
-        mBroadcastReceiver = new ActivityDetectionBroadcastReceiver();
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             checkLocationPermission();
         }
+
+        stopButton = (Button) findViewById(R.id.start_tracking) ;
+
+        sp = getSharedPreferences("isCollecteable", 0);
+
+        Fragment frag = new Fragment();
+        FragmentManager manager=getSupportFragmentManager();
+        FragmentTransaction transaction=manager.beginTransaction();
+        transaction.add(R.id.ar_fragment, frag, "user_activity_frag");
+        transaction.commit();
 
         presenter = new MapPresenterImpl(this);
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -112,13 +150,11 @@ public class MapsActivity extends LifecycleActivity implements OnMapReadyCallbac
     @Override
     protected void onResume() {
         super.onResume();
-        LocalBroadcastManager.getInstance(this).registerReceiver(mBroadcastReceiver, new IntentFilter(Constants.STRING_ACTION));
 
     }
 
     @Override
     protected void onPause() {
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(mBroadcastReceiver);
         super.onPause();
     }
 
@@ -156,40 +192,6 @@ public class MapsActivity extends LifecycleActivity implements OnMapReadyCallbac
             }
         }
 
-    }
-
-    public class ActivityDetectionBroadcastReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            ArrayList<DetectedActivity> detectedActivities = intent.getParcelableArrayListExtra(Constants.STRING_EXTRA);
-            for(DetectedActivity activity: detectedActivities){
-//                updateMap(getDetectedActivity(activity.getType()));
-            }
-        }
-    }
-
-    public String getDetectedActivity(int detectedActivityType) {
-        Resources resources = this.getResources();
-        switch(detectedActivityType) {
-            case DetectedActivity.IN_VEHICLE:
-                return resources.getString(R.string.in_vehicle);
-            case DetectedActivity.ON_BICYCLE:
-                return resources.getString(R.string.on_bicycle);
-            case DetectedActivity.ON_FOOT:
-                return resources.getString(R.string.on_foot);
-            case DetectedActivity.RUNNING:
-                return resources.getString(R.string.running);
-            case DetectedActivity.WALKING:
-                return resources.getString(R.string.walking);
-            case DetectedActivity.STILL:
-                return resources.getString(R.string.still);
-            case DetectedActivity.TILTING:
-                return resources.getString(R.string.tilting);
-            case DetectedActivity.UNKNOWN:
-                return resources.getString(R.string.unknown);
-            default:
-                return resources.getString(R.string.unidentifiable_activity, detectedActivityType);
-        }
     }
 
 

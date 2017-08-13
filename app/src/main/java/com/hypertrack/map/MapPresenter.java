@@ -21,4 +21,8 @@ public abstract class MapPresenter extends BaseFlow{
 
     public abstract void onPause();
 
+    public abstract void stopCollection();
+
+    public abstract void startCollection();
+
 }

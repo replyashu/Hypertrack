@@ -11,10 +11,6 @@ import android.content.Context;
 import com.hypertrack.model.DAO;
 import com.hypertrack.model.UserActivity;
 
-/**
- * Created by apple on 11/08/17.
- */
-
 
 @Database(entities = {UserActivity.class}, version = 1)
 public abstract class UserDatabase extends RoomDatabase {
